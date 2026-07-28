@@ -15,7 +15,6 @@
         h2 { color: #2c3e50; margin-bottom: 5px; font-size: 22px; }
         p.subtitle { color: #7f8c8d; font-size: 13px; margin-bottom: 15px; }
         
-        /* 상단 설정 및 에너지 패널 */
         .settings-panel {
             background: white; padding: 15px; border-radius: 10px;
             box-shadow: 0 2px 5px rgba(0,0,0,0.1); display: inline-block;
@@ -26,13 +25,11 @@
             width: 100%; margin-top: 8px; margin-bottom: 10px;
         }
         
-        /* 온도 시각화 패널 */
         .temp-display {
             background: #ffeaa7; padding: 5px 10px; border-radius: 5px;
             text-align: center; font-weight: bold; color: #d35400; font-size: 14px; margin-bottom: 10px;
         }
 
-        /* [수정] 에너지 디스플레이 및 바 (선생님 아이디어 적용) */
         .energy-display {
             background-color: #2c3e50; color: #f1c40f; padding: 8px;
             border-radius: 6px; font-weight: bold; font-size: 15px;
@@ -51,7 +48,6 @@
             font-size: 12px; color: #7f8c8d; margin-top: 5px; text-align: center; font-weight: bold;
         }
 
-        /* 동적 격자 디자인 */
         .grid-container {
             display: grid; gap: 6px; justify-content: center; margin: 10px auto 20px;
         }
@@ -65,7 +61,6 @@
         }
         .cell.highlight { border-color: #e74c3c; box-shadow: 0 0 10px #e74c3c; }
 
-        /* 컨트롤 버튼 디자인 */
         .controls {
             display: flex; flex-direction: column; gap: 8px;
             max-width: 320px; margin: 0 auto;
@@ -81,7 +76,7 @@
         }
         button:disabled { background-color: #bdc3c7 !important; cursor: not-allowed; opacity: 0.8; }
         button:active:not(:disabled) { transform: translateY(2px); }
-        .btn-draw.disabled-hint { opacity: 0.4; cursor: not-allowed; } /* [수정] 비활성 힌트 */
+        .btn-draw.disabled-hint { opacity: 0.4; cursor: not-allowed; } 
         
         .btn-draw { background-color: #8e44ad; }
         .btn-random { background-color: #f39c12; }
@@ -98,7 +93,7 @@
         }
 
         #message {
-            font-weight: bold; color: #2980b9; height: 40px;
+            font-weight: bold; color: #2980b9; height: 50px;
             display: flex; align-items: center; justify-content: center;
             padding: 0 10px; margin-bottom: 10px; font-size: 14px; line-height: 1.4;
         }
@@ -121,7 +116,6 @@
         <input type="range" id="temp-slider" min="0" max="5" step="0.1" value="0" oninput="updateTempDisplay()">
         <div class="temp-display">현재 온도(T): <span id="temp-value">0.0</span> (흔들림 정도)</div>
 
-        <!-- [수정] 에너지 디스플레이 통합 -->
         <div class="energy-display" id="energy-display">현재 시스템 에너지: —</div>
         <div class="energy-bar-wrap"><div class="energy-bar" id="energy-bar" style="width:0%"></div></div>
         <div class="energy-saved-label" id="energy-saved-label"></div>
@@ -155,6 +149,7 @@
         let N = 4;
         let SIZE = 16;
         let state = []; 
+        let originalState = []; // [수정] 원본 상태를 저장해두는 배열
         let weights = [];
         let isMemorySaved = false;
         let isAnimating = false;
@@ -175,6 +170,7 @@
             grid.style.gridAutoRows = `${cellSize}px`;
 
             state = Array(SIZE).fill(-1);
+            originalState = [];
             weights = Array(SIZE).fill(0).map(() => Array(SIZE).fill(0));
             isMemorySaved = false;
             savedEnergy = null;
@@ -234,9 +230,7 @@
                 let currentE = calculateEnergy();
                 energyDisp.innerText = `현재 시스템 에너지: ${currentE.toFixed(1)}`;
                 
-                // 에너지 바: 변동성(열요동)을 잘 보여주기 위해 여유 범위 계산
                 if (savedEnergy !== null && savedEnergy < 0) {
-                    // 에너지가 0보다 커질 수도 있으므로 상한선을 유연하게
                     let maxE = Math.abs(savedEnergy) * 0.5; 
                     let range = maxE - savedEnergy;
                     let pct = Math.max(0, Math.min(100, ((currentE - savedEnergy) / range) * 100));
@@ -271,8 +265,9 @@
                 }
             }
             isMemorySaved = true;
+            originalState = [...state]; // [수정] 원본 배열 백업
             savedEnergy = calculateEnergy();
-            energySavedLabel.innerText = `📌 진짜 정답(깊은 골짜기)의 에너지: ${savedEnergy.toFixed(1)}`;
+            energySavedLabel.innerText = `📌 원본(깊은 골짜기)의 최소 에너지: ${savedEnergy.toFixed(1)}`;
             updateUI();
             msg.innerText = "✅ 가중치(골짜기)가 형성되었습니다!";
         }
@@ -292,7 +287,37 @@
 
         const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-        // 3-A. 홉필드 복원 (비동기 처리로 웅덩이에 갇히는 과정 시각화)
+        // 복원 완료 후 원본과 비교하는 판별 함수 [추가]
+        function checkPatternMatch() {
+            let sameCount = 0;
+            let diffCount = 0;
+            for(let i=0; i<SIZE; i++) {
+                if(state[i] === originalState[i]) sameCount++;
+                else diffCount++;
+            }
+            if (sameCount === SIZE) return 'exact';    // 100% 일치
+            if (diffCount === SIZE) return 'inverse';  // 100% 반전
+            return 'spurious';                         // 섞여있음 (가짜 기억)
+        }
+
+        // 결과 메시지 출력 함수 [추가]
+        function showFinalMessage(currentE) {
+            // 부동소수점 오차 감안하여 +0.1 이내면 최저 에너지로 인정
+            if (currentE <= savedEnergy + 0.1) {
+                let matchType = checkPatternMatch();
+                if (matchType === 'exact') {
+                    msg.innerHTML = "❄️ 냉각 완료! <b>원본 기억</b>을 완벽히 찾아냈습니다.";
+                } else if (matchType === 'inverse') {
+                    msg.innerHTML = "❄️ 냉각 완료! 에너지는 최소인데 <b>색이 완벽히 뒤집힌 '반전(Inverse) 상태'</b>네요! (물리학의 대칭성 특성)";
+                } else {
+                    msg.innerHTML = "❄️ 냉각 완료! 에너지는 최소지만 원본과 다른 <b>혼종 상태</b>가 되었습니다.";
+                }
+            } else {
+                msg.innerHTML = `🛑 복원 정지! 원본 골짜기(${savedEnergy.toFixed(1)})를 찾지 못하고<br><b>가짜 웅덩이(${currentE.toFixed(1)})에 갇혔습니다!</b>`;
+            }
+        }
+
+        // 3-A. 홉필드 복원
         async function restoreMemoryHopfield() {
             if (!isMemorySaved || isAnimating) return;
             isAnimating = true;
@@ -324,13 +349,7 @@
                 iter++;
             }
             updateUI(-1);
-            
-            let currentE = calculateEnergy();
-            if (currentE > savedEnergy) {
-                msg.innerHTML = `🛑 복원 정지! 진짜 정답(${savedEnergy.toFixed(1)})을 찾지 못하고<br><b>가짜 웅덩이(${currentE.toFixed(1)})에 갇혔습니다!</b>`;
-            } else {
-                msg.innerHTML = `✨ 우연히 정답 골짜기에 잘 안착했습니다.`;
-            }
+            showFinalMessage(calculateEnergy());
             
             isAnimating = false;
             document.querySelectorAll('button').forEach(b => b.disabled = false);
@@ -355,14 +374,13 @@
                     let prob = 1 / (1 + Math.exp(-2 * sum / currentT));
                     state[i] = (Math.random() < prob) ? 1 : -1;
                 }
-                updateUI(); // 전체 갱신 (열요동 시각화)
+                updateUI(); // 전체 갱신
                 
                 currentT *= 0.85; // 냉각
                 tempSlider.value = currentT; updateTempDisplay();
                 await sleep(200);
             }
 
-            // 마지막 T=0 (홉필드 안정화)
             tempSlider.value = 0; updateTempDisplay();
             let indices = Array.from({length: SIZE}, (_, k) => k);
             for(let i of indices) {
@@ -371,13 +389,8 @@
                 state[i] = sum >= 0 ? 1 : -1;
             }
             updateUI(-1);
-
-            let currentE = calculateEnergy();
-            if (currentE <= savedEnergy) {
-                msg.innerHTML = "❄️ 냉각 완료! 에너지가 최소화되어 <b>가장 깊은 진짜 골짜기(정답)</b>를 찾았습니다.";
-            } else {
-                msg.innerHTML = "❄️ 냉각 완료. 아쉽게도 완벽한 정답에는 도달하지 못했습니다. 다시 가열해보세요!";
-            }
+            
+            showFinalMessage(calculateEnergy());
 
             isAnimating = false;
             document.querySelectorAll('button').forEach(b => b.disabled = false);
