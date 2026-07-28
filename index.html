@@ -3,202 +3,298 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>노벨 물리학상 AI 시뮬레이터 (볼츠만 머신)</title>
+    <title>볼츠만 머신 시뮬레이터 (AI 탐구)</title>
     <style>
+        /* =========================================
+           1. 기본 스타일 및 레이아웃
+           ========================================= */
         body {
             font-family: 'Pretendard', 'Malgun Gothic', sans-serif;
-            text-align: center;
-            background-color: #f4f6f9;
-            margin: 0;
-            padding: 15px;
+            background-color: #f4f6f9; color: #333;
+            margin: 0; padding: 20px;
         }
-        h2 { color: #2c3e50; margin-bottom: 5px; font-size: 22px; }
-        p.subtitle { color: #7f8c8d; font-size: 13px; margin-bottom: 15px; }
-        
-        .settings-panel {
-            background: white; padding: 15px; border-radius: 10px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1); display: inline-block;
-            margin-bottom: 15px; min-width: 300px; text-align: left;
+        h2 { text-align: center; color: #2c3e50; margin-bottom: 5px; font-size: 24px; }
+        p.subtitle { text-align: center; color: #7f8c8d; font-size: 14px; margin-bottom: 25px; }
+
+        .app-container {
+            display: flex; flex-wrap: wrap; gap: 20px;
+            max-width: 900px; margin: 0 auto; justify-content: center;
         }
-        .settings-panel label { font-size: 14px; font-weight: bold; color: #34495e; }
-        .settings-panel select, .settings-panel input[type=range] {
-            width: 100%; margin-top: 8px; margin-bottom: 10px;
-        }
-        
-        .temp-display {
-            background: #ffeaa7; padding: 5px 10px; border-radius: 5px;
-            text-align: center; font-weight: bold; color: #d35400; font-size: 14px; margin-bottom: 10px;
+        .left-panel, .right-panel {
+            background: white; padding: 20px; border-radius: 12px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+            flex: 1; min-width: 320px; max-width: 420px;
         }
 
-        .energy-display {
-            background-color: #2c3e50; color: #f1c40f; padding: 8px;
-            border-radius: 6px; font-weight: bold; font-size: 15px;
-            transition: all 0.3s; text-align: center; margin-top: 5px;
+        /* =========================================
+           2. 설정 및 컨트롤러 (왼쪽 패널)
+           ========================================= */
+        .control-group { margin-bottom: 15px; }
+        .control-group label { display: block; font-size: 13px; font-weight: bold; color: #34495e; margin-bottom: 5px; }
+        .control-group select, .control-group input[type=range] {
+            width: 100%; padding: 6px; border-radius: 6px; border: 1px solid #ccc; font-size: 14px;
         }
-        .energy-highlight { transform: scale(1.05); background-color: #e74c3c; }
-        .energy-bar-wrap {
-            margin-top: 6px; background: #444; border-radius: 4px;
-            height: 10px; overflow: hidden;
-        }
-        .energy-bar {
-            height: 10px; background: #f1c40f;
-            transition: width 0.2s ease; border-radius: 4px;
-        }
-        .energy-saved-label {
-            font-size: 12px; color: #7f8c8d; margin-top: 5px; text-align: center; font-weight: bold;
-        }
-
+        
+        /* 동적 격자 (학생 상호작용) */
         .grid-container {
-            display: grid; gap: 6px; justify-content: center; margin: 10px auto 20px;
+            display: grid; gap: 4px; justify-content: center; margin: 15px auto;
         }
         .cell {
-            background-color: white; border: 2px solid #bdc3c7; border-radius: 8px;
-            cursor: pointer; transition: all 0.1s ease-in-out;
-            box-shadow: 0 3px 5px rgba(0,0,0,0.1);
+            background-color: white; border: 2px solid #bdc3c7; border-radius: 6px;
+            cursor: pointer; transition: 0.1s; box-shadow: inset 0 0 5px rgba(0,0,0,0.05);
         }
-        .cell.active {
-            background-color: #2c3e50; border-color: #2c3e50; transform: scale(1.05);
-        }
+        .cell.active { background-color: #2c3e50; border-color: #2c3e50; transform: scale(1.05); }
         .cell.highlight { border-color: #e74c3c; box-shadow: 0 0 10px #e74c3c; }
 
-        .controls {
-            display: flex; flex-direction: column; gap: 8px;
-            max-width: 320px; margin: 0 auto;
-        }
-        .row-buttons { display: flex; gap: 8px; }
-        .row-buttons button { flex: 1; font-size: 13px; padding: 10px 5px;}
-        
+        /* 버튼 스타일 */
+        .btn-row { display: flex; gap: 8px; margin-bottom: 8px; }
         button {
-            padding: 12px; font-size: 14px; font-weight: bold;
-            color: white; border: none; border-radius: 8px;
-            cursor: pointer; transition: 0.2s;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            flex: 1; padding: 10px; font-size: 13px; font-weight: bold; color: white;
+            border: none; border-radius: 6px; cursor: pointer; transition: 0.2s;
         }
-        button:disabled { background-color: #bdc3c7 !important; cursor: not-allowed; opacity: 0.8; }
+        button:disabled { background-color: #bdc3c7 !important; cursor: not-allowed; }
         button:active:not(:disabled) { transform: translateY(2px); }
-        .btn-draw.disabled-hint { opacity: 0.4; cursor: not-allowed; } 
         
-        .btn-draw { background-color: #8e44ad; }
-        .btn-random { background-color: #f39c12; }
-        .btn-save { background-color: #27ae60; }
-        .btn-noise { background-color: #e74c3c; }
-        .btn-restore { background-color: #3498db; }
+        .btn-blue { background-color: #3498db; }
+        .btn-green { background-color: #27ae60; }
+        .btn-red { background-color: #e74c3c; }
+        .btn-orange { background-color: #e67e22; }
+        .btn-dark { background-color: #34495e; }
         .btn-boltzmann { background-color: #c0392b; animation: pulse 2s infinite; }
-        .btn-clear { background-color: #95a5a6; }
-        
+
         @keyframes pulse {
-            0% { box-shadow: 0 0 0 0 rgba(192, 57, 43, 0.7); }
+            0% { box-shadow: 0 0 0 0 rgba(192, 57, 43, 0.5); }
             70% { box-shadow: 0 0 0 10px rgba(192, 57, 43, 0); }
             100% { box-shadow: 0 0 0 0 rgba(192, 57, 43, 0); }
         }
 
-        #message {
-            font-weight: bold; color: #2980b9; height: 50px;
-            display: flex; align-items: center; justify-content: center;
-            padding: 0 10px; margin-bottom: 10px; font-size: 14px; line-height: 1.4;
+        /* =========================================
+           3. 데이터 시각화 (오른쪽 패널)
+           ========================================= */
+        .status-box {
+            background: #ecf0f1; padding: 12px; border-radius: 8px; margin-bottom: 15px;
+            text-align: center; font-size: 14px; font-weight: bold; line-height: 1.5;
+        }
+        .highlight-text { color: #c0392b; font-size: 16px; }
+
+        .chart-container {
+            margin-bottom: 15px; border: 1px solid #ddd; border-radius: 8px;
+            padding: 10px; background: #fafafa;
+        }
+        .chart-title { font-size: 12px; font-weight: bold; color: #7f8c8d; margin-bottom: 5px; text-align: center; }
+        canvas { display: block; margin: 0 auto; width: 100%; max-width: 380px; }
+
+        /* 학생용 툴팁/안내문 */
+        .student-tip {
+            font-size: 12px; color: #2980b9; background: #eaf2f8; padding: 8px;
+            border-radius: 6px; border-left: 4px solid #3498db; margin-top: 10px;
         }
     </style>
 </head>
 <body>
 
     <h2>🧠 볼츠만 머신 시뮬레이터</h2>
-    <p class="subtitle">AI는 어떻게 가짜 정답(웅덩이)을 탈출할까?</p>
+    <p class="subtitle">네트워크는 어떻게 에너지를 낮추고 정답을 찾아가는가?</p>
 
-    <div class="settings-panel">
-        <label for="grid-size">📐 네트워크 크기 조절</label>
-        <select id="grid-size" onchange="changeGridSize()">
-            <option value="4" selected>4 x 4 (총 16칸 - 하트 가능)</option>
-            <option value="5">5 x 5 (총 25칸)</option>
-            <option value="6">6 x 6 (총 36칸)</option>
-        </select>
-        
-        <label for="temp-slider">🔥 열에너지(온도 T) 조절</label>
-        <input type="range" id="temp-slider" min="0" max="5" step="0.1" value="0" oninput="updateTempDisplay()">
-        <div class="temp-display">현재 온도(T): <span id="temp-value">0.0</span> (흔들림 정도)</div>
+    <div class="app-container">
+        <!-- [왼쪽 패널] 네트워크 조작부 -->
+        <div class="left-panel">
+            <div class="control-group">
+                <label>📐 격자 크기 및 예제 패턴</label>
+                <div class="btn-row">
+                    <select id="grid-size" onchange="changeGridSize()">
+                        <option value="4" selected>4x4 (16칸)</option>
+                        <option value="5">5x5 (25칸)</option>
+                        <option value="6">6x6 (36칸)</option>
+                    </select>
+                    <select id="pattern-select">
+                        <option value="heart">하트 (4x4)</option>
+                        <option value="cross">십자가 (5x5)</option>
+                        <option value="smile">스마일 (6x6)</option>
+                    </select>
+                    <button class="btn-blue" onclick="drawPattern()">그리기</button>
+                    <button class="btn-orange" onclick="drawRandom()">랜덤</button>
+                </div>
+            </div>
 
-        <div class="energy-display" id="energy-display">현재 시스템 에너지: —</div>
-        <div class="energy-bar-wrap"><div class="energy-bar" id="energy-bar" style="width:0%"></div></div>
-        <div class="energy-saved-label" id="energy-saved-label"></div>
-    </div>
+            <div class="grid-container" id="grid"></div>
 
-    <div id="message">원본 그림을 그린 후 [기억하기]를 누르세요.</div>
+            <div class="student-tip" id="msg-box">
+                원하는 그림을 만든 후 [가중치 학습]을 눌러 신경망에 기억시키세요.
+            </div>
 
-    <div class="grid-container" id="grid"></div>
+            <div class="control-group" style="margin-top:15px;">
+                <button class="btn-green" style="width:100%; margin-bottom:10px;" onclick="saveMemory()">
+                    💾 1. 가중치 학습 (기억의 골짜기 형성)
+                </button>
+                
+                <div class="btn-row">
+                    <select id="noise-level" style="flex:1;">
+                        <option value="0.15">약한 노이즈 (15%)</option>
+                        <option value="0.30">중간 노이즈 (30%)</option>
+                        <option value="0.50" selected>강한 노이즈 (50%)</option>
+                    </select>
+                    <button class="btn-red" style="flex:1;" onclick="applyNoise()">🌪️ 2. 노이즈 적용</button>
+                </div>
 
-    <div class="controls">
-        <div class="row-buttons">
-            <button class="btn-draw" id="btn-draw" onclick="drawHeart()">❤️ 4x4 하트</button>
-            <button class="btn-random" onclick="drawRandom()">🎲 랜덤 패턴</button>
+                <div class="btn-row" style="margin-top:10px;">
+                    <button class="btn-dark" onclick="restoreHopfield()">🤖 3-A. 홉필드 복원</button>
+                    <button class="btn-boltzmann" onclick="startBoltzmann()">🔥 3-B. 볼츠만 복원</button>
+                </div>
+                <button class="btn-blue" style="width:100%; background:#95a5a6; margin-top:5px;" onclick="clearGrid()">초기화</button>
+            </div>
         </div>
-        <button class="btn-save" onclick="saveMemory()">💾 1. 연결망(가중치) 기억하기</button>
-        <button class="btn-noise" onclick="addSevereNoise()">🌪️ 2. 심한 노이즈 발생 (망가뜨리기)</button>
-        
-        <div class="row-buttons">
-            <button class="btn-restore" onclick="restoreMemoryHopfield()">
-                🤖 3-A. 홉필드 복원<br><span style="font-size:10px;font-weight:normal;">(가짜 웅덩이에 갇힘 확인)</span>
-            </button>
-            <button class="btn-boltzmann" onclick="startAnnealing()">
-                🔥 3-B. 볼츠만 복원<br><span style="font-size:10px;font-weight:normal;">(가열 후 냉각하며 정답 찾기)</span>
-            </button>
+
+        <!-- [오른쪽 패널] 시각화 및 데이터 분석부 -->
+        <div class="right-panel">
+            <div class="status-box">
+                <div>에너지 안정도: <span id="stability-text" class="highlight-text">0%</span></div>
+                <div style="font-size:12px; margin-top:5px; color:#555;" id="minima-status">
+                    [상태] 학습 대기 중
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label>🔥 열요동(온도 T) 상태</label>
+                <input type="range" id="temp-slider" min="0" max="5" step="0.1" value="0" disabled>
+                <div style="text-align:center; font-size:12px; font-weight:bold; color:#d35400;">
+                    현재 온도: <span id="temp-value">0.0</span>
+                </div>
+            </div>
+
+            <!-- 에너지 그래프 캔버스 -->
+            <div class="chart-container">
+                <div class="chart-title">📉 에너지 하강 그래프 (에너지 최소화 과정)</div>
+                <canvas id="energyChart" width="360" height="150"></canvas>
+            </div>
+
+            <!-- 가중치 행렬 캔버스 -->
+            <div class="chart-container">
+                <div class="chart-title">🔗 가중치(시냅스) 행렬 시각화</div>
+                <canvas id="weightChart" width="150" height="150"></canvas>
+                <p style="font-size:10px; text-align:center; margin:5px 0 0 0; color:#777;">
+                    파란색: 인력(+), 붉은색: 척력(-)<br>(노드 간의 연결 강도를 나타냅니다)
+                </p>
+            </div>
         </div>
-        
-        <button class="btn-clear" onclick="clearGrid()">초기화</button>
     </div>
 
     <script>
+        /* =========================================
+           전역 변수 및 초기화
+           ========================================= */
         let N = 4;
         let SIZE = 16;
         let state = []; 
-        let originalState = []; // [수정] 원본 상태를 저장해두는 배열
+        let originalState = []; 
         let weights = [];
         let isMemorySaved = false;
         let isAnimating = false;
-        let savedEnergy = null;
+        let savedEnergy = 0;
+        let energyHistory = []; // 그래프용 데이터
 
         const grid = document.getElementById('grid');
-        const msg = document.getElementById('message');
+        const msgBox = document.getElementById('msg-box');
         const tempSlider = document.getElementById('temp-slider');
         const tempValue = document.getElementById('temp-value');
-        const energyDisp = document.getElementById('energy-display');
-        const energyBar = document.getElementById('energy-bar');
-        const energySavedLabel = document.getElementById('energy-saved-label');
+        const stabilityText = document.getElementById('stability-text');
+        const minimaStatus = document.getElementById('minima-status');
+        
+        // 캔버스 컨텍스트
+        const ctxEnergy = document.getElementById('energyChart').getContext('2d');
+        const ctxWeight = document.getElementById('weightChart').getContext('2d');
 
-        function initGrid() {
+        function initApp() {
             grid.innerHTML = '';
             let cellSize = N === 4 ? 60 : (N === 5 ? 50 : 42);
             grid.style.gridTemplateColumns = `repeat(${N}, ${cellSize}px)`;
             grid.style.gridAutoRows = `${cellSize}px`;
 
             state = Array(SIZE).fill(-1);
-            originalState = [];
             weights = Array(SIZE).fill(0).map(() => Array(SIZE).fill(0));
             isMemorySaved = false;
-            savedEnergy = null;
-            tempSlider.value = 0; updateTempDisplay();
+            energyHistory = [];
             
-            energySavedLabel.innerText = '';
-            energyBar.style.width = '0%';
-            msg.innerText = "새로운 격자가 생성되었습니다.";
-
             for (let i = 0; i < SIZE; i++) {
                 let cell = document.createElement('div');
                 cell.className = 'cell';
                 cell.id = 'cell-' + i;
-                cell.onclick = () => handleCellClick(i);
+                cell.onclick = () => { if(!isAnimating) { state[i] *= -1; updateUI(); }};
                 grid.appendChild(cell);
+            }
+            updateUI();
+            drawEnergyGraph();
+            drawWeightMatrix();
+            minimaStatus.innerText = "[상태] 그림을 그리고 가중치를 학습시키세요.";
+            stabilityText.innerText = "0%";
+            stabilityText.style.color = "#333";
+        }
+
+        /* =========================================
+           핵심 기능: 패턴, 학습, 노이즈
+           ========================================= */
+        function changeGridSize() {
+            N = parseInt(document.getElementById('grid-size').value);
+            SIZE = N * N;
+            initApp();
+        }
+
+        function drawPattern() {
+            const type = document.getElementById('pattern-select').value;
+            state = Array(SIZE).fill(-1);
+            if (type === 'heart' && N === 4) {
+                state = [-1,1,1,-1, 1,1,1,1, -1,1,1,-1, -1,-1,-1,-1];
+            } else if (type === 'cross' && N === 5) {
+                state = [-1,-1,1,-1,-1, -1,-1,1,-1,-1, 1,1,1,1,1, -1,-1,1,-1,-1, -1,-1,1,-1,-1];
+            } else if (type === 'smile' && N === 6) {
+                state = [-1,1,-1,-1,1,-1, -1,1,-1,-1,1,-1, -1,-1,-1,-1,-1,-1, 1,-1,-1,-1,-1,1, -1,1,1,1,1,-1, -1,-1,-1,-1,-1,-1];
+            } else {
+                alert("해당 패턴은 현재 격자 크기에 맞지 않습니다."); return;
             }
             updateUI();
         }
 
-        function changeGridSize() {
-            N = parseInt(document.getElementById('grid-size').value);
-            SIZE = N * N;
-            const btnDraw = document.getElementById('btn-draw');
-            if (N === 4) btnDraw.classList.remove('disabled-hint');
-            else btnDraw.classList.add('disabled-hint');
-            initGrid();
+        function drawRandom() {
+            state = state.map(() => Math.random() > 0.5 ? 1 : -1);
+            updateUI();
         }
 
+        function saveMemory() {
+            for (let i = 0; i < SIZE; i++) {
+                for (let j = 0; j < SIZE; j++) {
+                    weights[i][j] = (i === j) ? 0 : state[i] * state[j];
+                }
+            }
+            isMemorySaved = true;
+            originalState = [...state];
+            savedEnergy = calculateEnergy();
+            energyHistory = [savedEnergy];
+            
+            updateUI();
+            drawEnergyGraph();
+            drawWeightMatrix();
+            msgBox.innerText = "가중치(W)가 저장되었습니다! 원본 데이터의 에너지가 최저점(정답)으로 설정됩니다.";
+            minimaStatus.innerText = `[상태] 학습 완료 (전역 최솟값 깊이: ${savedEnergy.toFixed(1)})`;
+        }
+
+        function applyNoise() {
+            if (!isMemorySaved) { alert("먼저 가중치를 학습해주세요!"); return; }
+            let ratio = parseFloat(document.getElementById('noise-level').value);
+            let count = Math.floor(SIZE * ratio);
+            
+            let indices = Array.from({length: SIZE}, (_, i) => i).sort(() => Math.random() - 0.5).slice(0, count);
+            indices.forEach(i => state[i] *= -1);
+            
+            energyHistory = [calculateEnergy()]; // 그래프 리셋
+            updateUI();
+            drawEnergyGraph();
+            msgBox.innerHTML = `노이즈가 적용되어 에너지가 상승했습니다.<br>복원 버튼을 눌러 정답을 찾아가 보세요.`;
+            minimaStatus.innerText = "[상태] 정보 훼손됨 (불안정 상태)";
+        }
+
+        /* =========================================
+           물리/수학 연산 및 시각화 업데이트
+           ========================================= */
         function calculateEnergy() {
             if (!isMemorySaved) return 0;
             let e = 0;
@@ -208,129 +304,104 @@
             return -0.5 * e;
         }
 
-        function handleCellClick(i) {
-            if(isAnimating) return;
-            state[i] *= -1;
-            updateUI();
-        }
-
         function updateUI(highlightIdx = -1) {
             for (let i = 0; i < SIZE; i++) {
                 let cell = document.getElementById('cell-' + i);
                 if(!cell) continue;
-                
-                if (state[i] === 1) cell.classList.add('active');
-                else cell.classList.remove('active');
-
-                if (i === highlightIdx) cell.classList.add('highlight');
-                else cell.classList.remove('highlight');
+                cell.className = 'cell' + (state[i]===1 ? ' active' : '') + (i===highlightIdx ? ' highlight' : '');
             }
 
             if (isMemorySaved) {
-                let currentE = calculateEnergy();
-                energyDisp.innerText = `현재 시스템 에너지: ${currentE.toFixed(1)}`;
+                // 안정도 계산 (원본과 일치하는 비율. 반전 대칭성 고려)
+                let same = 0;
+                for(let i=0; i<SIZE; i++) if(state[i] === originalState[i]) same++;
+                let matchRate = Math.max(same, SIZE - same) / SIZE * 100;
                 
-                if (savedEnergy !== null && savedEnergy < 0) {
-                    let maxE = Math.abs(savedEnergy) * 0.5; 
-                    let range = maxE - savedEnergy;
-                    let pct = Math.max(0, Math.min(100, ((currentE - savedEnergy) / range) * 100));
-                    energyBar.style.width = `${(100 - pct).toFixed(1)}%`;
+                stabilityText.innerText = `${matchRate.toFixed(0)}%`;
+                if(matchRate === 100) stabilityText.style.color = "#27ae60";
+                else if(matchRate > 70) stabilityText.style.color = "#f39c12";
+                else stabilityText.style.color = "#e74c3c";
+            }
+        }
+
+        // 에너지 하강 꺾은선 그래프
+        function drawEnergyGraph() {
+            ctxEnergy.clearRect(0, 0, 360, 150);
+            if(energyHistory.length === 0) return;
+
+            let maxE = Math.max(...energyHistory, 0);
+            let minE = savedEnergy < 0 ? savedEnergy : -10;
+            let range = maxE - minE || 1;
+
+            ctxEnergy.beginPath();
+            ctxEnergy.strokeStyle = "#e74c3c";
+            ctxEnergy.lineWidth = 2;
+
+            energyHistory.forEach((e, idx) => {
+                let x = (idx / Math.max(energyHistory.length - 1, 1)) * 340 + 10;
+                let y = 140 - ((e - minE) / range) * 120;
+                if(idx === 0) ctxEnergy.moveTo(x, y);
+                else ctxEnergy.lineTo(x, y);
+            });
+            ctxEnergy.stroke();
+
+            // 현재 에너지 텍스트 표시
+            ctxEnergy.fillStyle = "#2c3e50";
+            ctxEnergy.font = "12px Arial";
+            ctxEnergy.fillText(`현재 E: ${energyHistory[energyHistory.length-1].toFixed(1)}`, 10, 20);
+        }
+
+        // 가중치(시냅스) 행렬 2D 캔버스 맵핑
+        function drawWeightMatrix() {
+            ctxWeight.clearRect(0, 0, 150, 150);
+            if(!isMemorySaved) return;
+
+            let cellW = 150 / SIZE;
+            for(let i=0; i<SIZE; i++){
+                for(let j=0; j<SIZE; j++){
+                    let w = weights[i][j];
+                    if(w > 0) ctxWeight.fillStyle = `rgba(52, 152, 219, 0.8)`; // 파랑(인력)
+                    else if(w < 0) ctxWeight.fillStyle = `rgba(231, 76, 60, 0.8)`; // 빨강(척력)
+                    else ctxWeight.fillStyle = "#ecf0f1";
+                    
+                    ctxWeight.fillRect(j*cellW, i*cellW, cellW, cellW);
                 }
-            } else {
-                energyDisp.innerText = "기억을 저장해야 에너지가 측정됩니다.";
-                energyBar.style.width = '0%';
             }
-        }
-
-        function updateTempDisplay() {
-            tempValue.innerText = parseFloat(tempSlider.value).toFixed(1);
-        }
-
-        function drawHeart() {
-            if (N !== 4) { alert("하트 모양은 4x4에서만 지원됩니다."); return; }
-            state = [-1, 1, 1, -1, 1, 1, 1, 1, -1, 1, 1, -1, -1, -1, -1, -1];
-            updateUI();
-        }
-
-        function drawRandom() {
-            for (let i = 0; i < SIZE; i++) state[i] = Math.random() > 0.5 ? 1 : -1;
-            updateUI();
-        }
-
-        function saveMemory() {
-            for (let i = 0; i < SIZE; i++) {
-                for (let j = 0; j < SIZE; j++) {
-                    if (i !== j) weights[i][j] = state[i] * state[j];
-                    else weights[i][j] = 0;
-                }
-            }
-            isMemorySaved = true;
-            originalState = [...state]; // [수정] 원본 배열 백업
-            savedEnergy = calculateEnergy();
-            energySavedLabel.innerText = `📌 원본(깊은 골짜기)의 최소 에너지: ${savedEnergy.toFixed(1)}`;
-            updateUI();
-            msg.innerText = "✅ 가중치(골짜기)가 형성되었습니다!";
-        }
-
-        function addSevereNoise() {
-            if (!isMemorySaved) { alert("먼저 기억(저장)해주세요!"); return; }
-            let noiseCount = Math.floor(SIZE * 0.45); 
-            let indices = [];
-            while(indices.length < noiseCount) {
-                let r = Math.floor(Math.random() * SIZE);
-                if(indices.indexOf(r) === -1) indices.push(r);
-            }
-            indices.forEach(idx => { state[idx] *= -1; });
-            updateUI();
-            msg.innerHTML = `⚠️ 심한 노이즈 발생! 형태를 알 수 없습니다.`;
         }
 
         const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-        // 복원 완료 후 원본과 비교하는 판별 함수 [추가]
-        function checkPatternMatch() {
-            let sameCount = 0;
-            let diffCount = 0;
-            for(let i=0; i<SIZE; i++) {
-                if(state[i] === originalState[i]) sameCount++;
-                else diffCount++;
-            }
-            if (sameCount === SIZE) return 'exact';    // 100% 일치
-            if (diffCount === SIZE) return 'inverse';  // 100% 반전
-            return 'spurious';                         // 섞여있음 (가짜 기억)
+        function setUIState(disabled) {
+            isAnimating = disabled;
+            document.querySelectorAll('button').forEach(b => b.disabled = disabled);
         }
 
-        // 결과 메시지 출력 함수 [추가]
-        function showFinalMessage(currentE) {
-            // 부동소수점 오차 감안하여 +0.1 이내면 최저 에너지로 인정
-            if (currentE <= savedEnergy + 0.1) {
-                let matchType = checkPatternMatch();
-                if (matchType === 'exact') {
-                    msg.innerHTML = "❄️ 냉각 완료! <b>원본 기억</b>을 완벽히 찾아냈습니다.";
-                } else if (matchType === 'inverse') {
-                    msg.innerHTML = "❄️ 냉각 완료! 에너지는 최소인데 <b>색이 완벽히 뒤집힌 '반전(Inverse) 상태'</b>네요! (물리학의 대칭성 특성)";
-                } else {
-                    msg.innerHTML = "❄️ 냉각 완료! 에너지는 최소지만 원본과 다른 <b>혼종 상태</b>가 되었습니다.";
-                }
-            } else {
-                msg.innerHTML = `🛑 복원 정지! 원본 골짜기(${savedEnergy.toFixed(1)})를 찾지 못하고<br><b>가짜 웅덩이(${currentE.toFixed(1)})에 갇혔습니다!</b>`;
-            }
-        }
-
-        // 3-A. 홉필드 복원
-        async function restoreMemoryHopfield() {
-            if (!isMemorySaved || isAnimating) return;
-            isAnimating = true;
-            document.querySelectorAll('button').forEach(b => b.disabled = true);
-            tempSlider.value = 0; updateTempDisplay();
+        // 결과 판별 (국소 최솟값 vs 전역 최솟값)
+        function checkFinalState(currentE) {
+            let same = 0;
+            for(let i=0; i<SIZE; i++) if(state[i] === originalState[i]) same++;
             
-            msg.innerText = "🤖 홉필드 복원 중... 에너지가 낮아지는 쪽으로만 굴러갑니다.";
+            if (currentE <= savedEnergy + 0.1) {
+                if(same === SIZE) return "🎉 [전역 최솟값 도달] 완벽하게 복원되었습니다!";
+                if(same === 0) return "🎭 [전역 최솟값 도달] 색이 완벽히 반전되었습니다! (물리학의 대칭성)";
+                return "✨ [전역 최솟값 도달] 에너지는 최소이나, 다른 형태의 골짜기입니다.";
+            } else {
+                return "🛑 [국소 최솟값 갇힘] 가짜 웅덩이에 빠져 복원에 실패했습니다.";
+            }
+        }
+
+        /* =========================================
+           복원 알고리즘 (홉필드 / 볼츠만)
+           ========================================= */
+        async function restoreHopfield() {
+            if (!isMemorySaved || isAnimating) return;
+            setUIState(true);
+            msgBox.innerText = "에너지가 무조건 낮아지는 쪽으로 굴러갑니다 (결정론적 하강).";
+            
             let changed = true;
             let iter = 0;
-            
-            await sleep(500);
 
-            while (changed && iter < 10) {
+            while (changed && iter < 15) {
                 changed = false;
                 let indices = Array.from({length: SIZE}, (_, k) => k).sort(() => Math.random() - 0.5);
                 
@@ -342,66 +413,61 @@
                     if (state[i] !== newValue) {
                         state[i] = newValue;
                         changed = true;
-                        updateUI(i);
-                        await sleep(150);
+                        energyHistory.push(calculateEnergy());
+                        updateUI(i); drawEnergyGraph();
+                        await sleep(100);
                     }
                 }
                 iter++;
             }
             updateUI(-1);
-            showFinalMessage(calculateEnergy());
             
-            isAnimating = false;
-            document.querySelectorAll('button').forEach(b => b.disabled = false);
+            let finalResult = checkFinalState(calculateEnergy());
+            minimaStatus.innerText = finalResult;
+            if(finalResult.includes("국소")) minimaStatus.style.color = "#c0392b";
+            else minimaStatus.style.color = "#27ae60";
+            
+            setUIState(false);
         }
 
-        // 3-B. 볼츠만 담금질 기법 시뮬레이션
-        async function startAnnealing() {
+        async function startBoltzmann() {
             if (!isMemorySaved || isAnimating) return;
-            isAnimating = true;
-            document.querySelectorAll('button').forEach(b => b.disabled = true);
+            setUIState(true);
             
-            let currentT = 4.0;
-            tempSlider.value = currentT; updateTempDisplay();
-            msg.innerHTML = "🔥 고온 발생! 열요동으로 에너지가 끓어오르며 가짜 웅덩이를 탈출합니다.";
-
-            while (currentT >= 0.1) {
+            let T = 4.0;
+            msgBox.innerHTML = "온도를 높여 열요동(Fluctuation)을 일으킵니다.<br>에너지가 잠시 높아지더라도 얕은 웅덩이를 탈출합니다.";
+            
+            while (T >= 0.1) {
+                tempSlider.value = T; tempValue.innerText = T.toFixed(1);
+                
                 let indices = Array.from({length: SIZE}, (_, k) => k).sort(() => Math.random() - 0.5);
                 for(let i of indices) {
                     let sum = 0;
                     for (let j = 0; j < SIZE; j++) sum += weights[i][j] * state[j];
                     
-                    let prob = 1 / (1 + Math.exp(-2 * sum / currentT));
+                    let prob = 1 / (1 + Math.exp(-2 * sum / T));
                     state[i] = (Math.random() < prob) ? 1 : -1;
                 }
-                updateUI(); // 전체 갱신
                 
-                currentT *= 0.85; // 냉각
-                tempSlider.value = currentT; updateTempDisplay();
-                await sleep(200);
+                energyHistory.push(calculateEnergy());
+                updateUI(); drawEnergyGraph();
+                
+                T *= 0.85; // 담금질(Cooling)
+                await sleep(150);
             }
 
-            tempSlider.value = 0; updateTempDisplay();
-            let indices = Array.from({length: SIZE}, (_, k) => k);
-            for(let i of indices) {
-                let sum = 0;
-                for (let j = 0; j < SIZE; j++) sum += weights[i][j] * state[j];
-                state[i] = sum >= 0 ? 1 : -1;
-            }
-            updateUI(-1);
-            
-            showFinalMessage(calculateEnergy());
-
-            isAnimating = false;
-            document.querySelectorAll('button').forEach(b => b.disabled = false);
+            // 냉각 완료 후 홉필드로 미세 조정
+            tempSlider.value = 0; tempValue.innerText = "0.0";
+            msgBox.innerText = "냉각 완료. 최종 에너지를 안정화합니다.";
+            await restoreHopfield(); // 내부에서 UI 해제됨
         }
 
         function clearGrid() {
             if(isAnimating) return;
-            initGrid();
+            initApp();
         }
 
-        window.onload = initGrid;
+        window.onload = initApp;
     </script>
 </body>
 </html>
